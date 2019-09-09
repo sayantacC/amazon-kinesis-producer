@@ -113,7 +113,7 @@ public class SampleProducer {
      * 
      * @return KinesisProducer instance used to put records.
      */
-    public static KinesisProducer getKinesisProducer() {
+    public static KinesisProducer getKinesisProducer(final String region) {
         // There are many configurable parameters in the KPL. See the javadocs
         // on each each set method for details.
         KinesisProducerConfiguration config = new KinesisProducerConfiguration();
@@ -126,7 +126,7 @@ public class SampleProducer {
         // If you're running in EC2 and want to use the same Kinesis region as
         // the one your instance is in, you can simply leave out the region
         // configuration; the KPL will retrieve it from EC2 metadata.
-        config.setRegion(REGION);
+        config.setRegion(region);
         
         // You can pass credentials programmatically through the configuration,
         // similar to the AWS SDK. DefaultAWSCredentialsProviderChain is used
@@ -174,8 +174,19 @@ public class SampleProducer {
         return producer;
     }
     
+	public static String getArgIfPresent(final String[] args, final int index, final String defaultValue) {
+		return args.length > index ? args[index] : defaultValue;
+	}
+
+
     public static void main(String[] args) throws Exception {
-        final KinesisProducer producer = getKinesisProducer();
+		final String streamName = getArgIfPresent(args, 0, STREAM_NAME);
+		final String region = getArgIfPresent(args, 1, REGION);
+
+		log.info(String.format("Stream name: %s Region: %s",streamName, region));
+
+
+        final KinesisProducer producer = getKinesisProducer(region);
         
         // The monotonically increasing sequence number we will put in the data of each record
         final AtomicLong sequenceNumber = new AtomicLong(0);
@@ -213,7 +224,7 @@ public class SampleProducer {
                 ByteBuffer data = Utils.generateData(sequenceNumber.get(), DATA_SIZE);
                 // TIMESTAMP is our partition key
                 ListenableFuture<UserRecordResult> f =
-                        producer.addUserRecord(STREAM_NAME, TIMESTAMP, Utils.randomExplicitHashKey(), data);
+                        producer.addUserRecord(streamName, TIMESTAMP, Utils.randomExplicitHashKey(), data);
                 Futures.addCallback(f, callback, Executors.newSingleThreadExecutor());
             }
         };
