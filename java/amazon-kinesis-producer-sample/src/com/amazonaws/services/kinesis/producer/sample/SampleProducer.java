@@ -17,6 +17,7 @@ package com.amazonaws.services.kinesis.producer.sample;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -80,7 +81,7 @@ public class SampleProducer {
     /**
      * Put records for this number of seconds before exiting.
      */
-    private static final int SECONDS_TO_RUN = 5;
+    private static final int SECONDS_TO_RUN_DEFAULT = 5;
     
     /**
      * Put this number of records per second.
@@ -153,7 +154,7 @@ public class SampleProducer {
         // second limit on a shard. The default value is set very low to
         // minimize propagation delay, so we'll increase it here to get more
         // aggregation.
-        config.setRecordMaxBufferedTime(15000);
+        config.setRecordMaxBufferedTime(2000);
 
         // If you have built the native binary yourself, you can point the Java
         // wrapper to it with the NativeExecutable option. If you want to pass
@@ -174,16 +175,22 @@ public class SampleProducer {
         return producer;
     }
     
-	public static String getArgIfPresent(final String[] args, final int index, final String defaultValue) {
-		return args.length > index ? args[index] : defaultValue;
-	}
+    public static String getArgIfPresent(final String[] args, final int index, final String defaultValue) {
+        return args.length > index ? args[index] : defaultValue;
+    }
 
 
     public static void main(String[] args) throws Exception {
-		final String streamName = getArgIfPresent(args, 0, STREAM_NAME);
-		final String region = getArgIfPresent(args, 1, REGION);
+        final String streamName = getArgIfPresent(args, 0, STREAM_NAME);
+        final String region = getArgIfPresent(args, 1, REGION);
+        final String secondsToRunString = getArgIfPresent(args, 2, String.valueOf(SECONDS_TO_RUN_DEFAULT));
+        final int secondsToRun = Integer.parseInt(secondsToRunString);
+        if (secondsToRun <= 0) {
+            log.error("Seconds to Run should be a positive integer");
+            System.exit(1);
+        }
 
-		log.info(String.format("Stream name: %s Region: %s",streamName, region));
+        log.info(String.format("Stream name: %s Region: %s secondsToRun %d",streamName, region, secondsToRun));
 
 
         final KinesisProducer producer = getKinesisProducer(region);
@@ -217,6 +224,8 @@ public class SampleProducer {
             }
         };
         
+        final ExecutorService callbackThreadPool = Executors.newCachedThreadPool();
+
         // The lines within run() are the essence of the KPL API.
         final Runnable putOneRecord = new Runnable() {
             @Override
@@ -225,7 +234,7 @@ public class SampleProducer {
                 // TIMESTAMP is our partition key
                 ListenableFuture<UserRecordResult> f =
                         producer.addUserRecord(streamName, TIMESTAMP, Utils.randomExplicitHashKey(), data);
-                Futures.addCallback(f, callback, Executors.newSingleThreadExecutor());
+                Futures.addCallback(f, callback, callbackThreadPool);
             }
         };
         
@@ -234,7 +243,7 @@ public class SampleProducer {
             @Override
             public void run() {
                 long put = sequenceNumber.get();
-                long total = RECORDS_PER_SECOND * SECONDS_TO_RUN;
+                long total = RECORDS_PER_SECOND * secondsToRun;
                 double putPercent = 100.0 * put / total;
                 long done = completed.get();
                 double donePercent = 100.0 * done / total;
@@ -247,14 +256,14 @@ public class SampleProducer {
         // Kick off the puts
         log.info(String.format(
                 "Starting puts... will run for %d seconds at %d records per second",
-                SECONDS_TO_RUN, RECORDS_PER_SECOND));
-        executeAtTargetRate(EXECUTOR, putOneRecord, sequenceNumber, SECONDS_TO_RUN, RECORDS_PER_SECOND);
+                secondsToRun, RECORDS_PER_SECOND));
+        executeAtTargetRate(EXECUTOR, putOneRecord, sequenceNumber, secondsToRun, RECORDS_PER_SECOND);
         
         // Wait for puts to finish. After this statement returns, we have
         // finished all calls to putRecord, but the records may still be
         // in-flight. We will additionally wait for all records to actually
         // finish later.
-        EXECUTOR.awaitTermination(SECONDS_TO_RUN + 1, TimeUnit.SECONDS);
+        EXECUTOR.awaitTermination(secondsToRun + 1, TimeUnit.SECONDS);
         
         // If you need to shutdown your application, call flushSync() first to
         // send any buffered records. This method will block until all records
