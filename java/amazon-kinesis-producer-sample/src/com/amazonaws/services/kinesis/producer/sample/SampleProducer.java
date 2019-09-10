@@ -179,7 +179,12 @@ public class SampleProducer {
         return args.length > index ? args[index] : defaultValue;
     }
 
-
+    /** The main method.
+     *  @param args  The command line args for the Sample Producer. It takes 3 optional position parameters:
+     *  1. The stream name to use (test is default)
+     *  2. The region name to use (us-west-1 in default)
+     *  3. The duration of the test in seconds, 5 is the default.
+     */
     public static void main(String[] args) throws Exception {
         final String streamName = getArgIfPresent(args, 0, STREAM_NAME);
         final String region = getArgIfPresent(args, 1, REGION);
