@@ -214,7 +214,7 @@ fi
 if [ ! -d "aws-sdk-cpp" ]; then
   git clone https://github.com/awslabs/aws-sdk-cpp.git aws-sdk-cpp
   pushd aws-sdk-cpp
-  git checkout 1.0.5
+  git checkout 1.7.180
   popd
 
   rm -rf aws-sdk-cpp-build
@@ -223,7 +223,7 @@ if [ ! -d "aws-sdk-cpp" ]; then
   cd aws-sdk-cpp-build
 
   cmake \
-    -DBUILD_ONLY="kinesis;monitoring" \
+    -DBUILD_ONLY="events;kinesis;monitoring" \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DSTATIC_LINKING=1 \
     -DCMAKE_PREFIX_PATH="$INSTALL_DIR" \

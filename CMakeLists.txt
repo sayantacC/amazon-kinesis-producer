@@ -230,6 +230,10 @@ add_library(LibAwsCore STATIC IMPORTED)
 set_property(TARGET LibAwsCore PROPERTY IMPORTED_LOCATION ${THIRD_PARTY_LIB_DIR}/libaws-cpp-sdk-core.a)
 set_property(TARGET LibAwsCore PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES ${LIBRT_LIBRARIES} ${LIBIDN_LIBRARIES} LibSsl LibCurl)
 
+add_library(LibAwsEvents STATIC IMPORTED)
+set_property(TARGET LibAwsEvents PROPERTY IMPORTED_LOCATION ${THIRD_PARTY_LIB_DIR}/libaws-cpp-sdk-events.a)
+set_property(TARGET LibAwsEvents PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES LibAwsCore)
+
 add_library(LibAwsKinesis STATIC IMPORTED)
 set_property(TARGET LibAwsKinesis PROPERTY IMPORTED_LOCATION ${THIRD_PARTY_LIB_DIR}/libaws-cpp-sdk-kinesis.a)
 set_property(TARGET LibAwsKinesis PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES LibAwsCore)
@@ -241,11 +245,11 @@ set_property(TARGET LibAwsMonitoring PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES 
 
 add_executable(kinesis_producer ${SOURCE_FILES} ${LOGGING_TRIGGERS} aws/kinesis/main.cc)
 target_include_directories(kinesis_producer SYSTEM PUBLIC ${THIRD_PARTY_INCLUDE})
-target_link_libraries(kinesis_producer ${CMAKE_THREAD_LIBS_INIT} LibProto LibAwsCore LibAwsKinesis LibAwsMonitoring ${LIBBACKTRACE_LIBRARIES} ${STATIC_LIBS} ${UUID_LIBRARIES})
+target_link_libraries(kinesis_producer ${CMAKE_THREAD_LIBS_INIT} LibProto LibAwsCore LibAwsEvents LibAwsKinesis LibAwsMonitoring ${LIBBACKTRACE_LIBRARIES} ${STATIC_LIBS} ${UUID_LIBRARIES})
 
 add_executable(test_driver ${SOURCE_FILES} ${LOGGING_TRIGGERS} aws/kinesis/test_driver.cc)
 target_include_directories(test_driver SYSTEM PUBLIC ${THIRD_PARTY_INCLUDE})
-target_link_libraries(test_driver ${CMAKE_THREAD_LIBS_INIT} LibProto LibAwsCore LibAwsKinesis LibAwsMonitoring ${LIBBACKTRACE_LIBRARIES} ${STATIC_LIBS} ${UUID_LIBRARIES})
+target_link_libraries(test_driver ${CMAKE_THREAD_LIBS_INIT} LibProto LibAwsCore LibAwsEvents LibAwsKinesis LibAwsMonitoring ${LIBBACKTRACE_LIBRARIES} ${STATIC_LIBS} ${UUID_LIBRARIES})
 
 add_executable(tests ${SOURCE_FILES} ${TESTS_SOURCE} ${LOGGING_TRIGGERS} aws/kinesis/test/test.cc)
 target_include_directories(tests SYSTEM PUBLIC ${THIRD_PARTY_INCLUDE})
