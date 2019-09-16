@@ -245,7 +245,6 @@ cd ..
 
 #Build the native kinesis producer
 cmake -DCMAKE_PREFIX_PATH="$INSTALL_DIR" .
-
 make -j8
 
 #copy native producer to a location that the java producer can package it
