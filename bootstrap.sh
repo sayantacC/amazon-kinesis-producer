@@ -223,7 +223,7 @@ if [ ! -d "aws-sdk-cpp" ]; then
   cd aws-sdk-cpp-build
 
   cmake \
-    -DBUILD_ONLY="events;kinesis;monitoring" \
+    -DBUILD_ONLY="kinesis;monitoring" \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DSTATIC_LINKING=1 \
     -DCMAKE_PREFIX_PATH="$INSTALL_DIR" \
@@ -244,7 +244,10 @@ fi
 cd ..
 
 #Build the native kinesis producer
-cmake .
+cmake \ 
+  -DCMAKE_PREFIX_PATH="$INSTALL_DIR" \
+  .
+
 make -j4
 
 #copy native producer to a location that the java producer can package it
