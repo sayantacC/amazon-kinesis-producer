@@ -244,11 +244,9 @@ fi
 cd ..
 
 #Build the native kinesis producer
-cmake \ 
-  -DCMAKE_PREFIX_PATH="$INSTALL_DIR" \
-  .
+cmake -DCMAKE_PREFIX_PATH="$INSTALL_DIR" .
 
-make -j4
+make -j8
 
 #copy native producer to a location that the java producer can package it
 NATIVE_BINARY_DIR=java/amazon-kinesis-producer/src/main/resources/amazon-kinesis-producer-native-binaries/$RELEASE_TYPE/
