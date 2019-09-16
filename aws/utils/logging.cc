@@ -149,7 +149,7 @@ public:
   }
 
   virtual void Flush() override {
-    //TODO: flush
+    boost::log::core::get()->flush();
   }
     
   void LogToBoost(LogLevel logLevel, const char* tag, const std::string& message) {
