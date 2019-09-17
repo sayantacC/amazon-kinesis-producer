@@ -63,10 +63,14 @@ boost::optional<uint64_t> ShardMap::shard_id(const uint128_t& hash_key) {
   return boost::none;
 }
 
+
+
 void ShardMap::invalidate(TimePoint seen_at) {
   WriteLock lock(mutex_);
-
+  
   if (seen_at > updated_at_ && state_ == READY) {
+    std::chrono::duration<double, std::milli> fp_ms = seen_at - updated_at_;
+    LOG(info) << "Deciding to update shard map for \"" << stream_ <<"\" with a gap between seen_at and updated_at_ of " << fp_ms.count() << " ms " ;
     update();
   }
 }
