@@ -193,7 +193,7 @@ void Retrier::succeed_if_correct_shard(const std::shared_ptr<UserRecord>& ur,
     LOG(warning) << "Record went to shard " << shard_id << " instead of the "
                  << "prediceted shard " << *ur->predicted_shard() << "; this "
                  << "usually means the sharp map has changed.";
-    shard_map_invalidate_cb_(start);
+    shard_map_invalidate_cb_(start, ur->predicted_shard());
 
     retry_not_expired(ur,
                       start,

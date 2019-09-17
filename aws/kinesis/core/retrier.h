@@ -57,7 +57,7 @@ class Retrier {
  // using Result = std::shared_ptr<aws::http::HttpResult>;
   using UserRecordCallback =
       std::function<void (const std::shared_ptr<UserRecord>&)>;
-  using ShardMapInvalidateCallback = std::function<void (TimePoint)>;
+  using ShardMapInvalidateCallback = std::function<void (const TimePoint&, const boost::optional<uint64_t>)>;
   using ErrorCallback =
       std::function<void (const std::string&, const std::string&)>;
 

@@ -65,13 +65,16 @@ boost::optional<uint64_t> ShardMap::shard_id(const uint128_t& hash_key) {
 
 
 
-void ShardMap::invalidate(TimePoint seen_at) {
+void ShardMap::invalidate(const TimePoint& seen_at, const boost::optional<uint64_t> predicted_shard) {
   WriteLock lock(mutex_);
   
   if (seen_at > updated_at_ && state_ == READY) {
-    std::chrono::duration<double, std::milli> fp_ms = seen_at - updated_at_;
-    LOG(info) << "Deciding to update shard map for \"" << stream_ <<"\" with a gap between seen_at and updated_at_ of " << fp_ms.count() << " ms " ;
-    update();
+    if (!predicted_shard || std::binary_search(open_shard_ids_.begin(), open_shard_ids_.end(), *predicted_shard)) {
+      std::chrono::duration<double, std::milli> fp_ms = seen_at - updated_at_;
+      LOG(info) << "Deciding to update shard map for \"" << stream_ 
+                <<"\" with a gap between seen_at and updated_at_ of " << fp_ms.count() << " ms " << "predicted shard : " << predicted_shard;
+      update();
+    }
   }
 }
 
@@ -83,7 +86,7 @@ void ShardMap::update(const std::string& start_shard_id) {
   if (state_ != UPDATING) {
     state_ = UPDATING;
     LOG(info) << "Updating shard map for stream \"" << stream_ << "\"";
-    end_hash_key_to_shard_id_.clear();
+    clear_all_stored_shards();
     if (scheduled_callback_) {
       scheduled_callback_->cancel();
     }
@@ -127,10 +130,8 @@ void ShardMap::update_callback(
     if (shard.GetSequenceNumberRange().GetEndingSequenceNumber().size() > 0) {
       continue;
     }
-    end_hash_key_to_shard_id_.push_back(
-        std::make_pair<uint128_t, uint64_t>(
-            uint128_t(shard.GetHashKeyRange().GetEndingHashKey()),
-            shard_id_from_str(shard.GetShardId())));
+    store_open_shard(shard_id_from_str(shard.GetShardId()), 
+      uint128_t(shard.GetHashKeyRange().GetEndingHashKey()));
   }
 
   backoff_ = min_backoff_;
@@ -140,8 +141,7 @@ void ShardMap::update_callback(
     return;
   }
 
-  std::sort(end_hash_key_to_shard_id_.begin(),
-            end_hash_key_to_shard_id_.end());
+  sort_all_open_shards();
 
   WriteLock lock(mutex_);
   state_ = READY;
