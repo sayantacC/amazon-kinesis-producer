@@ -75,10 +75,10 @@ class ShardMap : boost::noncopyable {
   static const std::chrono::milliseconds kMinBackoff;
   static const std::chrono::milliseconds kMaxBackoff;
 
-  void update(const std::string& start_shard_id = "");
-
-  void update_callback(
-      const Aws::Kinesis::Model::DescribeStreamOutcome& outcome);
+  void update();
+  void update_stream_summary_callback(const Aws::Kinesis::Model::DescribeStreamSummaryOutcome& outcome);
+  void list_shards(const std::string& next_token = "");
+  void list_shards_callback(const Aws::Kinesis::Model::ListShardsOutcome& outcome);
 
   void update_fail(const std::string& code, const std::string& msg = "");
 

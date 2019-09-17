@@ -16,6 +16,8 @@
 #include <aws/kinesis/core/shard_map.h>
 
 #include <aws/kinesis/model/DescribeStreamRequest.h>
+#include <aws/kinesis/model/DescribeStreamSummaryRequest.h>
+#include <aws/kinesis/model/ListShardsRequest.h>
 
 namespace aws {
 namespace kinesis {
@@ -78,45 +80,43 @@ void ShardMap::invalidate(const TimePoint& seen_at, const boost::optional<uint64
   }
 }
 
-void ShardMap::update(const std::string& start_shard_id) {
-  if (start_shard_id.empty() && state_ == UPDATING) {
+void ShardMap::update() {
+  if (state_ == UPDATING) {
     return;
   }
 
-  if (state_ != UPDATING) {
-    state_ = UPDATING;
-    LOG(info) << "Updating shard map for stream \"" << stream_ << "\"";
-    clear_all_stored_shards();
-    if (scheduled_callback_) {
-      scheduled_callback_->cancel();
-    }
+  state_ = UPDATING;
+  LOG(info) << "Updating shard map for stream \"" << stream_ << "\"";
+  clear_all_stored_shards();
+  if (scheduled_callback_) {
+    scheduled_callback_->cancel();
   }
+  
 
-  Aws::Kinesis::Model::DescribeStreamRequest req;
+  Aws::Kinesis::Model::DescribeStreamSummaryRequest req;
   req.SetStreamName(stream_);
-  req.SetLimit(10000);
-  if (start_shard_id.size() > 0) {
-    req.SetExclusiveStartShardId(start_shard_id);
-  }
 
-  kinesis_client_->DescribeStreamAsync(
+  kinesis_client_->DescribeStreamSummaryAsync(
       req,
       [this](auto /*client*/, auto& /*req*/, auto& outcome, auto& /*ctx*/) {
-        this->update_callback(outcome);
+        this->update_stream_summary_callback(outcome);
       },
       std::shared_ptr<const Aws::Client::AsyncCallerContext>());
 }
 
-void ShardMap::update_callback(
-      const Aws::Kinesis::Model::DescribeStreamOutcome& outcome) {
+void ShardMap::update_stream_summary_callback(
+    const Aws::Kinesis::Model::DescribeStreamSummaryOutcome& outcome){
+  
   if (!outcome.IsSuccess()) {
     auto e = outcome.GetError();
     update_fail(e.GetExceptionName(), e.GetMessage());
     return;
   }
 
-  auto& description = outcome.GetResult().GetStreamDescription();
-  auto& status = description.GetStreamStatus();
+  LOG(info) << "DescribeStreamSummary call succeeded.";
+
+  auto& stream_summary = outcome.GetResult().GetStreamDescriptionSummary();
+  auto& status = stream_summary.GetStreamStatus();
 
   if (status != Aws::Kinesis::Model::StreamStatus::ACTIVE &&
       status != Aws::Kinesis::Model::StreamStatus::UPDATING) {
@@ -124,7 +124,35 @@ void ShardMap::update_callback(
     return;
   }
 
-  auto& shards = description.GetShards();
+  list_shards();
+}
+
+void ShardMap::list_shards(const Aws::String& next_token) {
+  Aws::Kinesis::Model::ListShardsRequest req;
+  req.SetStreamName(stream_);
+  req.SetMaxResults(1000);
+
+  if (!next_token.empty()) {
+    req.SetNextToken(next_token);
+  }
+
+  kinesis_client_->ListShardsAsync(
+      req,
+      [this](auto /*client*/, auto& /*req*/, auto& outcome, auto& /*ctx*/) {
+        this->list_shards_callback(outcome);
+      },
+      std::shared_ptr<const Aws::Client::AsyncCallerContext>());
+}
+
+void ShardMap::list_shards_callback(
+      const Aws::Kinesis::Model::ListShardsOutcome& outcome) {
+  if (!outcome.IsSuccess()) {
+    auto e = outcome.GetError();
+    update_fail(e.GetExceptionName(), e.GetMessage());
+    return;
+  }
+
+  auto& shards = outcome.GetResult().GetShards();  
   for (auto& shard : shards) {
     // Check if the shard is closed, if so, do not use it.
     if (shard.GetSequenceNumberRange().GetEndingSequenceNumber().size() > 0) {
@@ -135,9 +163,10 @@ void ShardMap::update_callback(
   }
 
   backoff_ = min_backoff_;
-
-  if (description.GetHasMoreShards()) {
-    update(shards[shards.size() - 1].GetShardId());
+  
+  auto& next_token = outcome.GetResult().GetNextToken();
+  if (!next_token.empty()) {
+    list_shards(next_token);
     return;
   }
 
