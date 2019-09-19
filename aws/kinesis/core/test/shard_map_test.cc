@@ -101,8 +101,8 @@ class Wrapper {
     return num_req_received_;
   }
 
-  void invalidate(std::chrono::steady_clock::time_point tp) {
-    shard_map_->invalidate(tp);
+  void invalidate(std::chrono::steady_clock::time_point tp, boost::optional<uint64_t> shard_id) {
+    shard_map_->invalidate(tp, shard_id);
   }
 
  private:
@@ -608,7 +608,7 @@ BOOST_AUTO_TEST_CASE(Invalidate) {
   // Calling invalidate with a timestamp that's before the last update should
   // not actually invalidate the shard map.
   wrapper.invalidate(
-      std::chrono::steady_clock::now() - std::chrono::seconds(15));
+      std::chrono::steady_clock::now() - std::chrono::seconds(15), {});
 
   // Shard map should continue working
   BOOST_CHECK_EQUAL(
@@ -633,13 +633,13 @@ BOOST_AUTO_TEST_CASE(Invalidate) {
 
   // On the other hand, calling invalidate with a timestamp after the last
   // update should actually invalidate it and trigger an update.
-  wrapper.invalidate(std::chrono::steady_clock::now());
+  wrapper.invalidate(std::chrono::steady_clock::now(), {});
 
   BOOST_CHECK(!wrapper.shard_id("0"));
 
   // Calling invalidate again during update should not trigger more requests.
   for (int i = 0; i < 5; i++) {
-    wrapper.invalidate(std::chrono::steady_clock::now());
+    wrapper.invalidate(std::chrono::steady_clock::now(), {});
     aws::utils::sleep_for(std::chrono::milliseconds(2));
   }
 

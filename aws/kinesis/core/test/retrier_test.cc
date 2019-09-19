@@ -117,7 +117,7 @@ BOOST_AUTO_TEST_CASE(Success) {
       [&](auto& ur) {
         BOOST_FAIL("Retry should not be called");
       },
-      [&](auto) {
+      [&](auto, auto) {
         BOOST_FAIL("Shard map invalidate should not be called");
       });
 
@@ -150,7 +150,7 @@ BOOST_AUTO_TEST_CASE(RequestFailure) {
         BOOST_CHECK_EQUAL(attempts[0].error_code(), "code");
         BOOST_CHECK_EQUAL(attempts[0].error_message(), "msg");
       },
-      [&](auto) {
+      [&](auto, auto) {
         BOOST_FAIL("Shard map invalidate should not be called");
       });
 
@@ -244,7 +244,7 @@ BOOST_AUTO_TEST_CASE(Partial) {
           BOOST_CHECK_EQUAL(attempts[0].error_message(), "...");
         }
       },
-      [&](auto) {
+      [&](auto, auto) {
         BOOST_FAIL("Shard map invalidate should not be called");
       });
 
@@ -287,7 +287,7 @@ BOOST_AUTO_TEST_CASE(FailIfThrottled) {
       [&](auto& ur) {
         BOOST_FAIL("Retry should not be called");
       },
-      [&](auto) {
+      [&](auto, auto) {
         BOOST_FAIL("Shard map invalidate should not be called");
       });
 
@@ -327,7 +327,7 @@ BOOST_AUTO_TEST_CASE(WrongShard) {
         BOOST_CHECK(!(bool) attempts[0]);
         BOOST_CHECK_EQUAL(attempts[0].error_code(), "Wrong Shard");
       },
-      [&](auto) {
+      [&](auto, auto) {
         shard_map_invalidated = true;
       });
 
