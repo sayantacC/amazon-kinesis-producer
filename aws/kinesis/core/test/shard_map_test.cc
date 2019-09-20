@@ -17,7 +17,8 @@
 
 #include <aws/core/utils/json/JsonSerializer.h>
 #include <aws/kinesis/core/shard_map.h>
-#include <aws/kinesis/model/DescribeStreamRequest.h>
+#include <aws/kinesis/model/DescribeStreamSummaryRequest.h>
+#include <aws/kinesis/model/ListShardsRequest.h>
 #include <aws/utils/io_service_executor.h>
 #include <aws/utils/utils.h>
 #include <aws/core/auth/AWSCredentialsProvider.h>
@@ -44,32 +45,60 @@ void pop(const std::list<T>* q) {
 class MockKinesisClient : public Aws::Kinesis::KinesisClient {
  public:
   MockKinesisClient(
-      std::list<Aws::Kinesis::Model::DescribeStreamOutcome> outcomes,
-      std::function<void ()> callback = []{})
+      std::list<Aws::Kinesis::Model::DescribeStreamSummaryOutcome> outcomes_desc_stream_summary,
+      std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards,
+      std::function<void ()> callback_desc_stream_summary = []{},
+      std::function<void ()> callback_list_shards = []{})
       : Aws::Kinesis::KinesisClient(kEmptyCreds, fake_client_cfg()),
-        outcomes_(std::move(outcomes)),
-        callback_(callback),
+        outcomes_desc_stream_summary_(std::move(outcomes_desc_stream_summary)),
+        outcomes_list_shards_(std::move(outcomes_list_shards)),
+        callback_desc_stream_summary_(callback_desc_stream_summary),
+        callback_list_shards_(callback_list_shards),
         executor_(std::make_shared<aws::utils::IoServiceExecutor>(1)) {}
-
-  virtual void DescribeStreamAsync(
-      const Aws::Kinesis::Model::DescribeStreamRequest& request,
-      const Aws::Kinesis::DescribeStreamResponseReceivedHandler& handler,
+  
+  
+  
+  virtual void DescribeStreamSummaryAsync(
+      const Aws::Kinesis::Model::DescribeStreamSummaryRequest& request,
+      const Aws::Kinesis::DescribeStreamSummaryResponseReceivedHandler& handler,
       const std::shared_ptr<const Aws::Client::AsyncCallerContext>& context
           = nullptr) const override {
     executor_->schedule([=] {
-      if (outcomes_.size() == 0) {
+    
+      if (outcomes_desc_stream_summary_.size() == 0) {
         throw std::runtime_error("No outcomes enqueued in the mock");
       }
-      auto outcome = outcomes_.front();
-      pop(&outcomes_);
+      auto outcome = outcomes_desc_stream_summary_.front();
+      pop(&outcomes_desc_stream_summary_);
       handler(this, request, outcome, context);
-      callback_();
+      callback_desc_stream_summary_();
     }, std::chrono::milliseconds(20));
   }
 
+  //TODO: write a template member method to reuse code
+  virtual void ListShardsAsync(
+      const Aws::Kinesis::Model::ListShardsRequest& request,
+      const Aws::Kinesis::ListShardsResponseReceivedHandler& handler,
+      const std::shared_ptr<const Aws::Client::AsyncCallerContext>& context
+          = nullptr) const override {
+    executor_->schedule([=] {
+    
+      if (outcomes_list_shards_.size() == 0) {
+        throw std::runtime_error("No outcomes enqueued in the mock");
+      }
+      auto outcome = outcomes_list_shards_.front();
+      pop(&outcomes_list_shards_);
+      handler(this, request, outcome, context);
+      callback_list_shards_();
+    }, std::chrono::milliseconds(20));
+  }
+
+
  private:
-  std::list<Aws::Kinesis::Model::DescribeStreamOutcome> outcomes_;
-  std::function<void ()> callback_;
+  std::list<Aws::Kinesis::Model::DescribeStreamSummaryOutcome> outcomes_desc_stream_summary_;
+  std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards_;
+  std::function<void ()> callback_desc_stream_summary_;
+  std::function<void ()> callback_list_shards_;
   std::shared_ptr<aws::utils::Executor> executor_;
 };
 
