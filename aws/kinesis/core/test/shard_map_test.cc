@@ -187,7 +187,7 @@ BOOST_AUTO_TEST_CASE(Basic) {
           }
         }
       ]
-  	})XXXX"));
+	})XXXX"));
 
   Wrapper wrapper(outcomes_list_shards);
 
@@ -276,7 +276,7 @@ BOOST_AUTO_TEST_CASE(ClosedShards) {
             "StartingSequenceNumber": "49549295168971078724367680114197886987710282642942328914"
           }
         }
-	    ]
+			]
   })XXXX"));
 
   Wrapper wrapper(outcomes_list_shards);
@@ -339,7 +339,7 @@ BOOST_AUTO_TEST_CASE(PaginatedResults) {
         }
       ],
 			"NextToken": "AAAAAAAAAAG0QcUm4uaCES69GuO6gBMdI+3lpu8FX/xFCUQU1rXHjqjDusPzyT3TIGQLTyzvBzR71j49xYeKJCtlQB9ZX8n8iCtdPHd7abVO4vc4Oc/KboHWEUsPzGgi5A9DN1qZO5+Rl6wEhlRapOIVHXwF/l6Fmah9Ie1iSUy5t1G2sL+WAZ0VU6y54EWAcAPQIISk1X7XZIWl9/ODi9zCHz6azeZI"
-	  })XXXX"));
+		})XXXX"));
 
   outcomes_list_shards.push_back(
 				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
@@ -378,7 +378,7 @@ BOOST_AUTO_TEST_CASE(PaginatedResults) {
           }
         }
       ]
-	  })XXXX"));
+		})XXXX"));
 
   Wrapper wrapper(outcomes_list_shards);
 
@@ -451,7 +451,7 @@ BOOST_AUTO_TEST_CASE(RetryAfterInitialFailure) {
           }
         }
       ]
-  	})XXXX"));
+		})XXXX"));
 
   Wrapper wrapper(outcomes_list_shards);
 
@@ -509,7 +509,7 @@ BOOST_AUTO_TEST_CASE(RetryWithFailureInTheMiddle) {
         }
       ],
 			"NextToken": "AAAAAAAAAAG0QcUm4uaCES69GuO6gBMdI+3lpu8FX/xFCUQU1rXHjqjDusPzyT3TIGQLTyzvBzR71j49xYeKJCtlQB9ZX8n8iCtdPHd7abVO4vc4Oc/KboHWEUsPzGgi5A9DN1qZO5+Rl6wEhlRapOIVHXwF/l6Fmah9Ie1iSUy5t1G2sL+WAZ0VU6y54EWAcAPQIISk1X7XZIWl9/ODi9zCHz6azeZI"
-	  })XXXX"));
+		})XXXX"));
 	
 	outcomes_list_shards.push_back(error_outcome<Aws::Kinesis::Model::ListShardsOutcome>());
 	outcomes_list_shards.push_back(error_outcome<Aws::Kinesis::Model::ListShardsOutcome>());
@@ -553,7 +553,7 @@ BOOST_AUTO_TEST_CASE(RetryWithFailureInTheMiddle) {
           }
         }
       ]
-	  })XXXX"));
+		})XXXX"));
 
   Wrapper wrapper(outcomes_list_shards);
 

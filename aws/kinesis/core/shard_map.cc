@@ -72,7 +72,7 @@ void ShardMap::invalidate(const TimePoint& seen_at, const boost::optional<uint64
     if (!predicted_shard || std::binary_search(open_shard_ids_.begin(), open_shard_ids_.end(), *predicted_shard)) {
       std::chrono::duration<double, std::milli> fp_ms = seen_at - updated_at_;
       LOG(info) << "Deciding to update shard map for \"" << stream_ 
-                <<"\" with a gap between seen_at and updated_at_ of " << fp_ms.count() << " ms " << "predicted shard : " << predicted_shard;
+                <<"\" with a gap between seen_at and updated_at_ of " << fp_ms.count() << " ms " << "predicted shard: " << predicted_shard;
       update();
     }
   }
@@ -89,19 +89,20 @@ void ShardMap::update() {
   if (scheduled_callback_) {
     scheduled_callback_->cancel();
   }
- 	
-	//We can call list shards directly without checking for stream state
-	//since list shard fails if the stream is not in the appropriate state. 
-	list_shards();
+  
+  //We can call list shards directly without checking for stream state
+  //since list shard fails if the stream is not in the appropriate state. 
+  list_shards();
 }
 
 void ShardMap::list_shards(const Aws::String& next_token) {
   Aws::Kinesis::Model::ListShardsRequest req;
-  req.SetStreamName(stream_);
   req.SetMaxResults(1000);
 
   if (!next_token.empty()) {
     req.SetNextToken(next_token);
+  } else {
+    req.SetStreamName(stream_);
   }
 
   kinesis_client_->ListShardsAsync(
