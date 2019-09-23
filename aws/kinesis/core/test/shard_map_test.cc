@@ -17,7 +17,6 @@
 
 #include <aws/core/utils/json/JsonSerializer.h>
 #include <aws/kinesis/core/shard_map.h>
-#include <aws/kinesis/model/DescribeStreamSummaryRequest.h>
 #include <aws/kinesis/model/ListShardsRequest.h>
 #include <aws/utils/io_service_executor.h>
 #include <aws/utils/utils.h>
@@ -45,37 +44,13 @@ void pop(const std::list<T>* q) {
 class MockKinesisClient : public Aws::Kinesis::KinesisClient {
  public:
   MockKinesisClient(
-      std::list<Aws::Kinesis::Model::DescribeStreamSummaryOutcome> outcomes_desc_stream_summary,
       std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards,
-      std::function<void ()> callback_desc_stream_summary = []{},
       std::function<void ()> callback_list_shards = []{})
       : Aws::Kinesis::KinesisClient(kEmptyCreds, fake_client_cfg()),
-        outcomes_desc_stream_summary_(std::move(outcomes_desc_stream_summary)),
         outcomes_list_shards_(std::move(outcomes_list_shards)),
-        callback_desc_stream_summary_(callback_desc_stream_summary),
         callback_list_shards_(callback_list_shards),
         executor_(std::make_shared<aws::utils::IoServiceExecutor>(1)) {}
   
-  
-  
-  virtual void DescribeStreamSummaryAsync(
-      const Aws::Kinesis::Model::DescribeStreamSummaryRequest& request,
-      const Aws::Kinesis::DescribeStreamSummaryResponseReceivedHandler& handler,
-      const std::shared_ptr<const Aws::Client::AsyncCallerContext>& context
-          = nullptr) const override {
-    executor_->schedule([=] {
-    
-      if (outcomes_desc_stream_summary_.size() == 0) {
-        throw std::runtime_error(std::string() + "No outcomes enqueued in the mock"+" describe stream summary");
-      }
-      auto outcome = outcomes_desc_stream_summary_.front();
-      pop(&outcomes_desc_stream_summary_);
-      handler(this, request, outcome, context);
-      callback_desc_stream_summary_();
-    }, std::chrono::milliseconds(20));
-  }
-
-  //TODO: write a template member method to reuse code
   virtual void ListShardsAsync(
       const Aws::Kinesis::Model::ListShardsRequest& request,
       const Aws::Kinesis::ListShardsResponseReceivedHandler& handler,
@@ -95,9 +70,7 @@ class MockKinesisClient : public Aws::Kinesis::KinesisClient {
 
 
  private:
-  std::list<Aws::Kinesis::Model::DescribeStreamSummaryOutcome> outcomes_desc_stream_summary_;
   std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards_;
-  std::function<void ()> callback_desc_stream_summary_;
   std::function<void ()> callback_list_shards_;
   std::shared_ptr<aws::utils::Executor> executor_;
 };
@@ -105,7 +78,6 @@ class MockKinesisClient : public Aws::Kinesis::KinesisClient {
 class Wrapper {
  public:
   Wrapper(
-      std::list<Aws::Kinesis::Model::DescribeStreamSummaryOutcome> outcomes_desc_stream_summary,
       std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards,
           int delay = 1500)
       : num_req_received_(0) {
@@ -113,9 +85,7 @@ class Wrapper {
         std::make_shared<aws::kinesis::core::ShardMap>(
             std::make_shared<aws::utils::IoServiceExecutor>(1),
             std::make_shared<MockKinesisClient>(
-                outcomes_desc_stream_summary,
                 outcomes_list_shards,
-                [this] { num_req_received_++; },
 								[this] { num_req_received_++; }),
             kStreamName,
             std::make_shared<aws::metrics::NullMetricsManager>(),
@@ -179,25 +149,7 @@ template <class O> O error_outcome() {
 BOOST_AUTO_TEST_SUITE(ShardMap)
 
 BOOST_AUTO_TEST_CASE(Basic) {
-  std::list<Aws::Kinesis::Model::DescribeStreamSummaryOutcome> outcomes_desc_stream_summary;
   std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards;
-	outcomes_desc_stream_summary.push_back(
-			success_outcome<Aws::Kinesis::Model::DescribeStreamSummaryResult,Aws::Kinesis::Model::DescribeStreamSummaryOutcome>(R"XXXX({
-    "StreamDescriptionSummary": {
-        "StreamName": "test",
-        "StreamARN": "arn:aws:kinesis:us-west-2:111111111111:stream/test",
-        "StreamStatus": "ACTIVE",
-        "RetentionPeriodHours": 24,
-        "StreamCreationTimestamp": 1569251843.0,
-        "EnhancedMonitoring": [
-            {
-                "ShardLevelMetrics": []
-            }
-        ],
-        "EncryptionType": "NONE",
-        "OpenShardCount": 3
-    }
-  })XXXX"));
 
   outcomes_list_shards.push_back(
 				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
@@ -237,7 +189,7 @@ BOOST_AUTO_TEST_CASE(Basic) {
       ]
   	})XXXX"));
 
-  Wrapper wrapper(outcomes_desc_stream_summary, outcomes_list_shards);
+  Wrapper wrapper(outcomes_list_shards);
 
   BOOST_CHECK_EQUAL(
       *wrapper.shard_id("170141183460469231731687303715884105728"),
@@ -259,33 +211,13 @@ BOOST_AUTO_TEST_CASE(Basic) {
       3);
 	BOOST_CHECK_EQUAL(
 			wrapper.num_req_received(),
-			2);
+			1);
 
 }
 
 
 BOOST_AUTO_TEST_CASE(ClosedShards) {
-  std::list<Aws::Kinesis::Model::DescribeStreamSummaryOutcome> outcomes_desc_stream_summary;
   std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards;
-	outcomes_desc_stream_summary.push_back(
-			success_outcome<Aws::Kinesis::Model::DescribeStreamSummaryResult,Aws::Kinesis::Model::DescribeStreamSummaryOutcome>(R"XXXX({
-    "StreamDescriptionSummary": {
-      "StreamStatus": "ACTIVE",
-      "StreamName": "test",
-      "StreamARN": "arn:aws:kinesis:us-west-2:111111111111:stream/test",
-      "StreamStatus": "ACTIVE",
-      "RetentionPeriodHours": 24,
-      "StreamCreationTimestamp": 1569251843.0,
-      "EnhancedMonitoring": [
-          {
-              "ShardLevelMetrics": []
-          }
-      ],
-      "EncryptionType": "NONE",
-      "OpenShardCount": 4
-    }
-  })XXXX"));
-  
   outcomes_list_shards.push_back(
 				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
       "Shards": [
@@ -347,7 +279,7 @@ BOOST_AUTO_TEST_CASE(ClosedShards) {
 	    ]
   })XXXX"));
 
-  Wrapper wrapper(outcomes_desc_stream_summary, outcomes_list_shards);
+  Wrapper wrapper(outcomes_list_shards);
 
   BOOST_CHECK_EQUAL(
       *wrapper.shard_id("0"),
@@ -372,33 +304,13 @@ BOOST_AUTO_TEST_CASE(ClosedShards) {
       5);
 	BOOST_CHECK_EQUAL(
 			wrapper.num_req_received(),
-			2);
+			1);
 }
 
 
 
 BOOST_AUTO_TEST_CASE(PaginatedResults) {
-  std::list<Aws::Kinesis::Model::DescribeStreamSummaryOutcome> outcomes_desc_stream_summary;
   std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards;
-
-	outcomes_desc_stream_summary.push_back(
-			success_outcome<Aws::Kinesis::Model::DescribeStreamSummaryResult,Aws::Kinesis::Model::DescribeStreamSummaryOutcome>(R"XXXX({
-    "StreamDescriptionSummary": {
-      "StreamStatus": "ACTIVE",
-      "StreamName": "test",
-      "StreamARN": "arn:aws:kinesis:us-west-2:111111111111:stream/test",
-      "StreamStatus": "ACTIVE",
-      "RetentionPeriodHours": 24,
-      "StreamCreationTimestamp": 1569251843.0,
-      "EnhancedMonitoring": [
-          {
-              "ShardLevelMetrics": []
-          }
-      ],
-      "EncryptionType": "NONE",
-      "OpenShardCount": 4
-    }
-  })XXXX"));
 
   outcomes_list_shards.push_back(
 				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
@@ -468,7 +380,7 @@ BOOST_AUTO_TEST_CASE(PaginatedResults) {
       ]
 	  })XXXX"));
 
-  Wrapper wrapper(outcomes_desc_stream_summary, outcomes_list_shards);
+  Wrapper wrapper(outcomes_list_shards);
 
 
   BOOST_CHECK_EQUAL(
@@ -495,33 +407,14 @@ BOOST_AUTO_TEST_CASE(PaginatedResults) {
 
 	BOOST_CHECK_EQUAL(
 			wrapper.num_req_received(),
-			3);
+			2);
 }
 
 
-BOOST_AUTO_TEST_CASE(RetryDescribeStreamSummary) {
-  std::list<Aws::Kinesis::Model::DescribeStreamSummaryOutcome> outcomes_desc_stream_summary;
+BOOST_AUTO_TEST_CASE(RetryAfterInitialFailure) {
   std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards;
 	
-	outcomes_desc_stream_summary.push_back(error_outcome<Aws::Kinesis::Model::DescribeStreamSummaryOutcome>());
-	outcomes_desc_stream_summary.push_back(
-			success_outcome<Aws::Kinesis::Model::DescribeStreamSummaryResult,Aws::Kinesis::Model::DescribeStreamSummaryOutcome>(R"XXXX({
-    "StreamDescriptionSummary": {
-        "StreamName": "test",
-        "StreamARN": "arn:aws:kinesis:us-west-2:111111111111:stream/test",
-        "StreamStatus": "ACTIVE",
-        "RetentionPeriodHours": 24,
-        "StreamCreationTimestamp": 1569251843.0,
-        "EnhancedMonitoring": [
-            {
-                "ShardLevelMetrics": []
-            }
-        ],
-        "EncryptionType": "NONE",
-        "OpenShardCount": 3
-    }
-  })XXXX"));
-
+	outcomes_list_shards.push_back(error_outcome<Aws::Kinesis::Model::ListShardsOutcome>());
   outcomes_list_shards.push_back(
 				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
       "Shards": [
@@ -560,7 +453,7 @@ BOOST_AUTO_TEST_CASE(RetryDescribeStreamSummary) {
       ]
   	})XXXX"));
 
-  Wrapper wrapper(outcomes_desc_stream_summary, outcomes_list_shards);
+  Wrapper wrapper(outcomes_list_shards);
 
   BOOST_CHECK_EQUAL(
       *wrapper.shard_id("170141183460469231731687303715884105728"),
@@ -583,36 +476,12 @@ BOOST_AUTO_TEST_CASE(RetryDescribeStreamSummary) {
 
 	BOOST_CHECK_EQUAL(
 			wrapper.num_req_received(),
-			3);
+			2);
 }
 
 
-BOOST_AUTO_TEST_CASE(RetryListShards) {
-  std::list<Aws::Kinesis::Model::DescribeStreamSummaryOutcome> outcomes_desc_stream_summary;
+BOOST_AUTO_TEST_CASE(RetryWithFailureInTheMiddle) {
   std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards;
-
-	outcomes_desc_stream_summary.push_back(
-			success_outcome<Aws::Kinesis::Model::DescribeStreamSummaryResult,Aws::Kinesis::Model::DescribeStreamSummaryOutcome>(R"XXXX({
-    "StreamDescriptionSummary": {
-      "StreamStatus": "ACTIVE",
-      "StreamName": "test",
-      "StreamARN": "arn:aws:kinesis:us-west-2:111111111111:stream/test",
-      "StreamStatus": "ACTIVE",
-      "RetentionPeriodHours": 24,
-      "StreamCreationTimestamp": 1569251843.0,
-      "EnhancedMonitoring": [
-          {
-              "ShardLevelMetrics": []
-          }
-      ],
-      "EncryptionType": "NONE",
-      "OpenShardCount": 4
-    }
-  })XXXX"));
-
-	outcomes_desc_stream_summary.push_back(outcomes_desc_stream_summary.front());
-	outcomes_desc_stream_summary.push_back(outcomes_desc_stream_summary.front());
-
   outcomes_list_shards.push_back(
 				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
       "Shards": [
@@ -686,7 +555,7 @@ BOOST_AUTO_TEST_CASE(RetryListShards) {
       ]
 	  })XXXX"));
 
-  Wrapper wrapper(outcomes_desc_stream_summary, outcomes_list_shards);
+  Wrapper wrapper(outcomes_list_shards);
 
 
   BOOST_CHECK_EQUAL(
@@ -713,18 +582,18 @@ BOOST_AUTO_TEST_CASE(RetryListShards) {
 
 	BOOST_CHECK_EQUAL(
 			wrapper.num_req_received(),
-			8);
+			5);
 }
 
 
-/**
+
 BOOST_AUTO_TEST_CASE(Backoff) {
-  std::list<Aws::Kinesis::Model::DescribeStreamOutcome> outcomes;
+  std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards;
   for (int i = 0; i < 25; i++) {
-    outcomes.push_back(error_outcome());
+    outcomes_list_shards.push_back(error_outcome<Aws::Kinesis::Model::ListShardsOutcome>());
   }
 
-  Wrapper wrapper(outcomes, 0);
+  Wrapper wrapper(outcomes_list_shards, 0);
 
   auto start = std::chrono::high_resolution_clock::now();
 
@@ -745,15 +614,11 @@ BOOST_AUTO_TEST_CASE(Backoff) {
   aws::utils::sleep_for(std::chrono::milliseconds(500));
 }
 
-BOOST_AUTO_TEST_CASE(Invalidate) {
-  std::list<Aws::Kinesis::Model::DescribeStreamOutcome> outcomes;
 
-  outcomes.push_back(success_outcome(R"XXXX(
-  {
-    "StreamDescription": {
-      "StreamStatus": "ACTIVE",
-      "StreamName": "test",
-      "StreamARN": "arn:aws:kinesis:us-west-2:263868185958:stream\/test",
+BOOST_AUTO_TEST_CASE(Invalidate) {
+  std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards;
+  outcomes_list_shards.push_back(
+				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
       "Shards": [
         {
           "HashKeyRange": {
@@ -788,16 +653,11 @@ BOOST_AUTO_TEST_CASE(Invalidate) {
           }
         }
       ]
-    }
-  }
-  )XXXX"));
+  })XXXX"));
 
-  outcomes.push_back(success_outcome(R"XXXX(
-  {
-    "StreamDescription": {
-      "StreamStatus": "ACTIVE",
-      "StreamName": "test",
-      "StreamARN": "arn:aws:kinesis:us-west-2:263868185958:stream\/test",
+  
+  outcomes_list_shards.push_back(
+				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
       "Shards": [
         {
           "HashKeyRange": {
@@ -832,11 +692,9 @@ BOOST_AUTO_TEST_CASE(Invalidate) {
           }
         }
       ]
-    }
-  }
-  )XXXX"));
+  })XXXX"));
 
-  Wrapper wrapper(outcomes);
+  Wrapper wrapper(outcomes_list_shards);
 
   // Calling invalidate with a timestamp that's before the last update should
   // not actually invalidate the shard map.
@@ -899,6 +757,161 @@ BOOST_AUTO_TEST_CASE(Invalidate) {
   BOOST_CHECK_EQUAL(
       *wrapper.shard_id("170141183460469231731687303715884105727"),
       7);
+
+	BOOST_CHECK_EQUAL(
+			wrapper.num_req_received(),
+			2);
 }
-*/
+
+
+BOOST_AUTO_TEST_CASE(InvalidateWithShard) {
+  std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards;
+  outcomes_list_shards.push_back(
+				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
+      "Shards": [
+        {
+          "HashKeyRange": {
+            "EndingHashKey": "340282366920938463463374607431768211455",
+            "StartingHashKey": "170141183460469231731687303715884105728"
+          },
+          "ShardId": "shardId-000000000001",
+          "SequenceNumberRange": {
+            "StartingSequenceNumber": "49549167410945534708633744510750617797212193316405248018"
+          }
+        },
+        {
+          "HashKeyRange": {
+            "EndingHashKey": "85070591730234615865843651857942052862",
+            "StartingHashKey": "0"
+          },
+          "ShardId": "shardId-000000000002",
+          "ParentShardId": "shardId-000000000000",
+          "SequenceNumberRange": {
+            "StartingSequenceNumber": "49549169978943246555030591128013184047489460388642160674"
+          }
+        },
+        {
+          "HashKeyRange": {
+            "EndingHashKey": "170141183460469231731687303715884105727",
+            "StartingHashKey": "85070591730234615865843651857942052863"
+          },
+          "ShardId": "shardId-000000000003",
+          "ParentShardId": "shardId-000000000000",
+          "SequenceNumberRange": {
+            "StartingSequenceNumber": "49549169978965547300229121751154719765762108750148141106"
+          }
+        }
+      ]
+  })XXXX"));
+
+  
+  outcomes_list_shards.push_back(
+				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
+      "Shards": [
+        {
+          "HashKeyRange": {
+            "EndingHashKey": "340282366920938463463374607431768211455",
+            "StartingHashKey": "170141183460469231731687303715884105728"
+          },
+          "ShardId": "shardId-000000000005",
+          "SequenceNumberRange": {
+            "StartingSequenceNumber": "49549167410945534708633744510750617797212193316405248018"
+          }
+        },
+        {
+          "HashKeyRange": {
+            "EndingHashKey": "85070591730234615865843651857942052862",
+            "StartingHashKey": "0"
+          },
+          "ShardId": "shardId-000000000006",
+          "ParentShardId": "shardId-000000000000",
+          "SequenceNumberRange": {
+            "StartingSequenceNumber": "49549169978943246555030591128013184047489460388642160674"
+          }
+        },
+        {
+          "HashKeyRange": {
+            "EndingHashKey": "170141183460469231731687303715884105727",
+            "StartingHashKey": "85070591730234615865843651857942052863"
+          },
+          "ShardId": "shardId-000000000007",
+          "ParentShardId": "shardId-000000000000",
+          "SequenceNumberRange": {
+            "StartingSequenceNumber": "49549169978965547300229121751154719765762108750148141106"
+          }
+        }
+      ]
+  })XXXX"));
+
+  Wrapper wrapper(outcomes_list_shards);
+
+  //Invalidating even after the shard map has updated but the shard is closed
+	//should not result in an update
+	wrapper.invalidate(
+      std::chrono::steady_clock::now(), boost::optional<uint64_t>(0));
+
+  // Shard map should continue working
+  BOOST_CHECK_EQUAL(
+      *wrapper.shard_id("170141183460469231731687303715884105728"),
+      1);
+  BOOST_CHECK_EQUAL(
+      *wrapper.shard_id("340282366920938463463374607431768211455"),
+      1);
+  BOOST_CHECK_EQUAL(
+      *wrapper.shard_id("0"),
+      2);
+  BOOST_CHECK_EQUAL(
+      *wrapper.shard_id("85070591730234615865843651857942052862"),
+      2);
+  BOOST_CHECK_EQUAL(
+      *wrapper.shard_id("85070591730234615865843651857942052863"),
+      3);
+  BOOST_CHECK_EQUAL(
+      *wrapper.shard_id("170141183460469231731687303715884105727"),
+      3);
+
+  //Invalidating even after the shard map has updated but if the shard is open
+	//it should result in an update
+  wrapper.invalidate(std::chrono::steady_clock::now(), boost::optional<uint64_t>(1));
+
+  BOOST_CHECK(!wrapper.shard_id("0"));
+
+  // Calling invalidate again during update should not trigger more requests.
+  for (int i = 0; i < 5; i++) {
+    wrapper.invalidate(std::chrono::steady_clock::now(), {});
+    aws::utils::sleep_for(std::chrono::milliseconds(2));
+  }
+
+  BOOST_CHECK(!wrapper.shard_id("0"));
+
+  aws::utils::sleep_for(std::chrono::milliseconds(500));
+
+  // A new shard map should've been fetched
+  BOOST_CHECK_EQUAL(
+      *wrapper.shard_id("170141183460469231731687303715884105728"),
+      5);
+  BOOST_CHECK_EQUAL(
+      *wrapper.shard_id("340282366920938463463374607431768211455"),
+      5);
+  BOOST_CHECK_EQUAL(
+      *wrapper.shard_id("0"),
+      6);
+  BOOST_CHECK_EQUAL(
+      *wrapper.shard_id("85070591730234615865843651857942052862"),
+      6);
+  BOOST_CHECK_EQUAL(
+      *wrapper.shard_id("85070591730234615865843651857942052863"),
+      7);
+  BOOST_CHECK_EQUAL(
+      *wrapper.shard_id("170141183460469231731687303715884105727"),
+      7);
+
+	BOOST_CHECK_EQUAL(
+			wrapper.num_req_received(),
+			2);
+}
+
+
+
+
 BOOST_AUTO_TEST_SUITE_END()

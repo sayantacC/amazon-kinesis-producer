@@ -15,8 +15,6 @@
 
 #include <aws/kinesis/core/shard_map.h>
 
-#include <aws/kinesis/model/DescribeStreamRequest.h>
-#include <aws/kinesis/model/DescribeStreamSummaryRequest.h>
 #include <aws/kinesis/model/ListShardsRequest.h>
 
 namespace aws {
@@ -91,40 +89,10 @@ void ShardMap::update() {
   if (scheduled_callback_) {
     scheduled_callback_->cancel();
   }
-  
-
-  Aws::Kinesis::Model::DescribeStreamSummaryRequest req;
-  req.SetStreamName(stream_);
-
-  kinesis_client_->DescribeStreamSummaryAsync(
-      req,
-      [this](auto /*client*/, auto& /*req*/, auto& outcome, auto& /*ctx*/) {
-        this->update_stream_summary_callback(outcome);
-      },
-      std::shared_ptr<const Aws::Client::AsyncCallerContext>());
-}
-
-void ShardMap::update_stream_summary_callback(
-    const Aws::Kinesis::Model::DescribeStreamSummaryOutcome& outcome){
-  
-  if (!outcome.IsSuccess()) {
-    auto e = outcome.GetError();
-    update_fail(e.GetExceptionName(), e.GetMessage());
-    return;
-  }
-
-  LOG(info) << "DescribeStreamSummary call succeeded.";
-
-  auto& stream_summary = outcome.GetResult().GetStreamDescriptionSummary();
-  auto& status = stream_summary.GetStreamStatus();
-
-  if (status != Aws::Kinesis::Model::StreamStatus::ACTIVE &&
-      status != Aws::Kinesis::Model::StreamStatus::UPDATING) {
-    update_fail("StreamNotReady");
-    return;
-  }
-
-  list_shards();
+ 	
+	//We can call list shards directly without checking for stream state
+	//since list shard fails if the stream is not in the appropriate state. 
+	list_shards();
 }
 
 void ShardMap::list_shards(const Aws::String& next_token) {
