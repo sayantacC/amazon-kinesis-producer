@@ -86,7 +86,7 @@ class Wrapper {
             std::make_shared<aws::utils::IoServiceExecutor>(1),
             std::make_shared<MockKinesisClient>(
                 outcomes_list_shards,
-								[this] { num_req_received_++; }),
+                [this] { num_req_received_++; }),
             kStreamName,
             std::make_shared<aws::metrics::NullMetricsManager>(),
             std::chrono::milliseconds(100),
@@ -130,14 +130,14 @@ template <class R, class O> O success_outcome(std::string json) {
   Aws::Http::HeaderValueCollection h;
   Aws::AmazonWebServiceResult<Aws::Utils::Json::JsonValue> awsr(j, h);
   R result(awsr);
-	O outcome(result);
-	return outcome;
+  O outcome(result);
+  return outcome;
 }
 
 
 template <class O> O error_outcome() {
   init_sdk_if_needed();
-	O outcome(
+  O outcome(
       Aws::Client::AWSError<Aws::Kinesis::KinesisErrors>(
           Aws::Kinesis::KinesisErrors::UNKNOWN,
           "test"));
@@ -152,7 +152,7 @@ BOOST_AUTO_TEST_CASE(Basic) {
   std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards;
 
   outcomes_list_shards.push_back(
-				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
+        success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
       "Shards": [
         {
           "HashKeyRange": {
@@ -187,7 +187,7 @@ BOOST_AUTO_TEST_CASE(Basic) {
           }
         }
       ]
-	})XXXX"));
+  })XXXX"));
 
   Wrapper wrapper(outcomes_list_shards);
 
@@ -209,9 +209,9 @@ BOOST_AUTO_TEST_CASE(Basic) {
   BOOST_CHECK_EQUAL(
       *wrapper.shard_id("170141183460469231731687303715884105727"),
       3);
-	BOOST_CHECK_EQUAL(
-			wrapper.num_req_received(),
-			1);
+  BOOST_CHECK_EQUAL(
+      wrapper.num_req_received(),
+      1);
 
 }
 
@@ -219,7 +219,7 @@ BOOST_AUTO_TEST_CASE(Basic) {
 BOOST_AUTO_TEST_CASE(ClosedShards) {
   std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards;
   outcomes_list_shards.push_back(
-				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
+        success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
       "Shards": [
         {
           "HashKeyRange": {
@@ -276,7 +276,7 @@ BOOST_AUTO_TEST_CASE(ClosedShards) {
             "StartingSequenceNumber": "49549295168971078724367680114197886987710282642942328914"
           }
         }
-			]
+      ]
   })XXXX"));
 
   Wrapper wrapper(outcomes_list_shards);
@@ -302,9 +302,9 @@ BOOST_AUTO_TEST_CASE(ClosedShards) {
   BOOST_CHECK_EQUAL(
       *wrapper.shard_id("340282366920938463463374607431768211455"),
       5);
-	BOOST_CHECK_EQUAL(
-			wrapper.num_req_received(),
-			1);
+  BOOST_CHECK_EQUAL(
+      wrapper.num_req_received(),
+      1);
 }
 
 
@@ -313,7 +313,7 @@ BOOST_AUTO_TEST_CASE(PaginatedResults) {
   std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards;
 
   outcomes_list_shards.push_back(
-				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
+        success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
       "Shards": [
         {
           "HashKeyRange": {
@@ -338,11 +338,11 @@ BOOST_AUTO_TEST_CASE(PaginatedResults) {
           }
         }
       ],
-			"NextToken": "AAAAAAAAAAG0QcUm4uaCES69GuO6gBMdI+3lpu8FX/xFCUQU1rXHjqjDusPzyT3TIGQLTyzvBzR71j49xYeKJCtlQB9ZX8n8iCtdPHd7abVO4vc4Oc/KboHWEUsPzGgi5A9DN1qZO5+Rl6wEhlRapOIVHXwF/l6Fmah9Ie1iSUy5t1G2sL+WAZ0VU6y54EWAcAPQIISk1X7XZIWl9/ODi9zCHz6azeZI"
-		})XXXX"));
+      "NextToken": "AAAAAAAAAAG0QcUm4uaCES69GuO6gBMdI+3lpu8FX/xFCUQU1rXHjqjDusPzyT3TIGQLTyzvBzR71j49xYeKJCtlQB9ZX8n8iCtdPHd7abVO4vc4Oc/KboHWEUsPzGgi5A9DN1qZO5+Rl6wEhlRapOIVHXwF/l6Fmah9Ie1iSUy5t1G2sL+WAZ0VU6y54EWAcAPQIISk1X7XZIWl9/ODi9zCHz6azeZI"
+    })XXXX"));
 
   outcomes_list_shards.push_back(
-				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
+        success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
       "Shards": [
         {
           "HashKeyRange": {
@@ -378,7 +378,7 @@ BOOST_AUTO_TEST_CASE(PaginatedResults) {
           }
         }
       ]
-		})XXXX"));
+    })XXXX"));
 
   Wrapper wrapper(outcomes_list_shards);
 
@@ -405,18 +405,18 @@ BOOST_AUTO_TEST_CASE(PaginatedResults) {
       *wrapper.shard_id("340282366920938463463374607431768211455"),
       5);
 
-	BOOST_CHECK_EQUAL(
-			wrapper.num_req_received(),
-			2);
+  BOOST_CHECK_EQUAL(
+      wrapper.num_req_received(),
+      2);
 }
 
 
 BOOST_AUTO_TEST_CASE(RetryAfterInitialFailure) {
   std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards;
-	
-	outcomes_list_shards.push_back(error_outcome<Aws::Kinesis::Model::ListShardsOutcome>());
+  
+  outcomes_list_shards.push_back(error_outcome<Aws::Kinesis::Model::ListShardsOutcome>());
   outcomes_list_shards.push_back(
-				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
+        success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
       "Shards": [
         {
           "HashKeyRange": {
@@ -451,7 +451,7 @@ BOOST_AUTO_TEST_CASE(RetryAfterInitialFailure) {
           }
         }
       ]
-		})XXXX"));
+    })XXXX"));
 
   Wrapper wrapper(outcomes_list_shards);
 
@@ -474,16 +474,16 @@ BOOST_AUTO_TEST_CASE(RetryAfterInitialFailure) {
       *wrapper.shard_id("170141183460469231731687303715884105727"),
       3);
 
-	BOOST_CHECK_EQUAL(
-			wrapper.num_req_received(),
-			2);
+  BOOST_CHECK_EQUAL(
+      wrapper.num_req_received(),
+      2);
 }
 
 
 BOOST_AUTO_TEST_CASE(RetryWithFailureInTheMiddle) {
   std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards;
   outcomes_list_shards.push_back(
-				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
+        success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
       "Shards": [
         {
           "HashKeyRange": {
@@ -508,16 +508,16 @@ BOOST_AUTO_TEST_CASE(RetryWithFailureInTheMiddle) {
           }
         }
       ],
-			"NextToken": "AAAAAAAAAAG0QcUm4uaCES69GuO6gBMdI+3lpu8FX/xFCUQU1rXHjqjDusPzyT3TIGQLTyzvBzR71j49xYeKJCtlQB9ZX8n8iCtdPHd7abVO4vc4Oc/KboHWEUsPzGgi5A9DN1qZO5+Rl6wEhlRapOIVHXwF/l6Fmah9Ie1iSUy5t1G2sL+WAZ0VU6y54EWAcAPQIISk1X7XZIWl9/ODi9zCHz6azeZI"
-		})XXXX"));
-	
-	outcomes_list_shards.push_back(error_outcome<Aws::Kinesis::Model::ListShardsOutcome>());
-	outcomes_list_shards.push_back(error_outcome<Aws::Kinesis::Model::ListShardsOutcome>());
+      "NextToken": "AAAAAAAAAAG0QcUm4uaCES69GuO6gBMdI+3lpu8FX/xFCUQU1rXHjqjDusPzyT3TIGQLTyzvBzR71j49xYeKJCtlQB9ZX8n8iCtdPHd7abVO4vc4Oc/KboHWEUsPzGgi5A9DN1qZO5+Rl6wEhlRapOIVHXwF/l6Fmah9Ie1iSUy5t1G2sL+WAZ0VU6y54EWAcAPQIISk1X7XZIWl9/ODi9zCHz6azeZI"
+    })XXXX"));
+  
+  outcomes_list_shards.push_back(error_outcome<Aws::Kinesis::Model::ListShardsOutcome>());
+  outcomes_list_shards.push_back(error_outcome<Aws::Kinesis::Model::ListShardsOutcome>());
 
-	outcomes_list_shards.push_back(outcomes_list_shards.front());
+  outcomes_list_shards.push_back(outcomes_list_shards.front());
 
   outcomes_list_shards.push_back(
-				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
+        success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
       "Shards": [
         {
           "HashKeyRange": {
@@ -553,7 +553,7 @@ BOOST_AUTO_TEST_CASE(RetryWithFailureInTheMiddle) {
           }
         }
       ]
-		})XXXX"));
+    })XXXX"));
 
   Wrapper wrapper(outcomes_list_shards);
 
@@ -580,9 +580,9 @@ BOOST_AUTO_TEST_CASE(RetryWithFailureInTheMiddle) {
       *wrapper.shard_id("340282366920938463463374607431768211455"),
       5);
 
-	BOOST_CHECK_EQUAL(
-			wrapper.num_req_received(),
-			5);
+  BOOST_CHECK_EQUAL(
+      wrapper.num_req_received(),
+      5);
 }
 
 
@@ -618,7 +618,7 @@ BOOST_AUTO_TEST_CASE(Backoff) {
 BOOST_AUTO_TEST_CASE(Invalidate) {
   std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards;
   outcomes_list_shards.push_back(
-				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
+        success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
       "Shards": [
         {
           "HashKeyRange": {
@@ -657,7 +657,7 @@ BOOST_AUTO_TEST_CASE(Invalidate) {
 
   
   outcomes_list_shards.push_back(
-				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
+        success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
       "Shards": [
         {
           "HashKeyRange": {
@@ -758,16 +758,16 @@ BOOST_AUTO_TEST_CASE(Invalidate) {
       *wrapper.shard_id("170141183460469231731687303715884105727"),
       7);
 
-	BOOST_CHECK_EQUAL(
-			wrapper.num_req_received(),
-			2);
+  BOOST_CHECK_EQUAL(
+      wrapper.num_req_received(),
+      2);
 }
 
 
 BOOST_AUTO_TEST_CASE(InvalidateWithShard) {
   std::list<Aws::Kinesis::Model::ListShardsOutcome> outcomes_list_shards;
   outcomes_list_shards.push_back(
-				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
+        success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
       "Shards": [
         {
           "HashKeyRange": {
@@ -806,7 +806,7 @@ BOOST_AUTO_TEST_CASE(InvalidateWithShard) {
 
   
   outcomes_list_shards.push_back(
-				success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
+        success_outcome<Aws::Kinesis::Model::ListShardsResult,Aws::Kinesis::Model::ListShardsOutcome>(R"XXXX({
       "Shards": [
         {
           "HashKeyRange": {
@@ -846,8 +846,8 @@ BOOST_AUTO_TEST_CASE(InvalidateWithShard) {
   Wrapper wrapper(outcomes_list_shards);
 
   //Invalidating even after the shard map has updated but the shard is closed
-	//should not result in an update
-	wrapper.invalidate(
+  //should not result in an update
+  wrapper.invalidate(
       std::chrono::steady_clock::now(), boost::optional<uint64_t>(0));
 
   // Shard map should continue working
@@ -871,7 +871,7 @@ BOOST_AUTO_TEST_CASE(InvalidateWithShard) {
       3);
 
   //Invalidating even after the shard map has updated but if the shard is open
-	//it should result in an update
+  //it should result in an update
   wrapper.invalidate(std::chrono::steady_clock::now(), boost::optional<uint64_t>(1));
 
   BOOST_CHECK(!wrapper.shard_id("0"));
@@ -906,9 +906,9 @@ BOOST_AUTO_TEST_CASE(InvalidateWithShard) {
       *wrapper.shard_id("170141183460469231731687303715884105727"),
       7);
 
-	BOOST_CHECK_EQUAL(
-			wrapper.num_req_received(),
-			2);
+  BOOST_CHECK_EQUAL(
+      wrapper.num_req_received(),
+      2);
 }
 
 
