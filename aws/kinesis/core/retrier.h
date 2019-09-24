@@ -113,11 +113,12 @@ class Retrier {
             const std::string& err_code,
             const std::string& err_msg);
 
-  void succeed_if_correct_shard(const std::shared_ptr<UserRecord>& ur,
+  bool succeed_if_correct_shard(const std::shared_ptr<UserRecord>& ur,
                                 TimePoint start,
                                 TimePoint end,
                                 const std::string& shard_id,
-                                const std::string& sequence_number);
+                                const std::string& sequence_number,
+                                const bool should_invalidate_on_incorrect_shard);
 
   void finish_user_record(const std::shared_ptr<UserRecord>& ur,
                           const Attempt& final_attempt);
