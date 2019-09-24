@@ -338,4 +338,98 @@ BOOST_AUTO_TEST_CASE(WrongShard) {
   BOOST_CHECK_EQUAL(count, 1);
 }
 
+
+BOOST_AUTO_TEST_CASE(InvalidateForFirstUserRecordOnly) {
+  auto ctx = make_prr_ctx(
+      1,
+      10,
+      success_outcome(R"(
+      {
+        "FailedRecordCount": 0,
+        "Records":[
+          {
+            "SequenceNumber":"1234",
+            "ShardId":"shardId-000000000004"
+          }
+        ]
+      }
+      )"));
+
+  size_t count = 0;
+  int num_shard_map_invalidated = 0;
+
+  aws::kinesis::core::Retrier retrier(
+      std::make_shared<aws::kinesis::core::Configuration>(),
+      [&](auto& ur) {
+        BOOST_FAIL("Finish should not be called");
+      },
+      [&](auto& ur) {
+        count++;
+        auto& attempts = ur->attempts();
+        BOOST_CHECK_EQUAL(attempts.size(), 1);
+        BOOST_CHECK(!(bool) attempts[0]);
+        BOOST_CHECK_EQUAL(attempts[0].error_code(), "Wrong Shard");
+      },
+      [&](auto, auto) {
+        num_shard_map_invalidated++;
+      });
+
+  retrier.put(ctx);
+
+  BOOST_CHECK_EQUAL(num_shard_map_invalidated, 1);
+  BOOST_CHECK_EQUAL(count, 10);
+
+}
+
+BOOST_AUTO_TEST_CASE(InvalidateForPredictedShardIdsLowerThanActual) {
+  auto ctx = make_prr_ctx(
+      3,
+      10,
+      success_outcome(R"(
+      {
+        "FailedRecordCount": 0,
+        "Records":[
+          {
+            "SequenceNumber":"1234",
+            "ShardId":"shardId-000000000002"
+          },
+          {
+            "SequenceNumber":"1235",
+            "ShardId":"shardId-000000000002"
+          },
+          {
+            "SequenceNumber":"1236",
+            "ShardId":"shardId-000000000001"
+          }
+        ]
+      }
+      )"));
+
+  size_t count = 0;
+  int num_shard_map_invalidated = 0;
+
+  aws::kinesis::core::Retrier retrier(
+      std::make_shared<aws::kinesis::core::Configuration>(),
+      [&](auto& ur) {
+        BOOST_FAIL("Finish should not be called");
+      },
+      [&](auto& ur) {
+        count++;
+        auto& attempts = ur->attempts();
+        BOOST_CHECK_EQUAL(attempts.size(), 1);
+        BOOST_CHECK(!(bool) attempts[0]);
+        BOOST_CHECK_EQUAL(attempts[0].error_code(), "Wrong Shard");
+      },
+      [&](auto, auto) {
+        num_shard_map_invalidated++;
+      });
+
+  retrier.put(ctx);
+
+  BOOST_CHECK_EQUAL(num_shard_map_invalidated, 2);
+  BOOST_CHECK_EQUAL(count, 30);
+
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()
